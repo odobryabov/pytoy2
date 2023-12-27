@@ -12,23 +12,36 @@ class Computer:
 		
 	class ALU:
 		RESOLUTION = 16
+
 		half_adder = lambda self, a, b: (a ^ b, a & b)
+		
+		def full_adder(self, a, b, cr): 
+			s1, c1 = self.half_adder(a, b)
+			s, c2 = self.half_adder(cr, s1)
+			return (s, c1 | c2)
+
+		def adder_substractor(self, a, b, cr, sub):
+			return self.full_adder(a, b ^ sub, cr)
 
 		def Add(self, v1, v2):
-			carry = 0
 			result = 0
+			carry = 0
 			for x in range(self.RESOLUTION):
-				
 				b1 = (v1 & (1 << x)) >> x
 				b2 = (v2 & (1 << x)) >> x
-				s1, c1 = self.half_adder(b1, b2)
-				s, c2 = self.half_adder(carry, s1)
-				carry = c1 | c2
-				result = result | (s << x)
+				r, carry = self.adder_substractor(b1, b2, carry, 0)
+				result = result | (r << x)
 			return result
 
 		def Sub(self, v1, v2):
-			return v1 - v2
+			result = 0
+			carry = 1
+			for x in range(self.RESOLUTION):
+				b1 = (v1 & (1 << x)) >> x
+				b2 = (v2 & (1 << x)) >> x
+				r, carry = self.adder_substractor(b1, b2, carry, 1)
+				result = result | (r << x)
+			return result
 
 		def And(self, v1, v2):
 			return v1 & v2
@@ -210,9 +223,16 @@ class Computer:
 		exit()
 
 computer = Computer()
+# test add
 computer.memory.write(0x10, 0x81FF)
 computer.memory.write(0x11, 0x82FF)
 computer.memory.write(0x12, 0x1312)
 computer.memory.write(0x13, 0x93FF)
+
+# test sub
+computer.memory.write(0x14, 0x81FF)
+computer.memory.write(0x15, 0x82FF)
+computer.memory.write(0x16, 0x2312)
+computer.memory.write(0x17, 0x93FF)
 computer.start()
 #computer.write(255, 123)
