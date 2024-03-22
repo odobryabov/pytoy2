@@ -18,7 +18,7 @@ class Computer:
 		def full_adder(self, a, b, cr): 
 			s1, c1 = self.half_adder(a, b)
 			s, c2 = self.half_adder(cr, s1)
-			return (s, c1 | c2)
+			return s, c1 | c2
 
 		def adder_substractor(self, a, b, cr, sub):
 			return self.full_adder(a, b ^ sub, cr)
@@ -155,13 +155,13 @@ class Computer:
 		self.halt()
 
 	def start(self):
-		pc = 0x10
-		while pc < self.memory.MEMORY_SIZE:
-			op, d, s, t, addr = self.instruction_fetch(pc)
+		self.pc = 0x10
+		while self.pc < self.memory.MEMORY_SIZE:
+			op, d, s, t, addr = self.instruction_fetch(self.pc)
 
 			print("op " + hex(op) + ", d " + hex(d) + ", s " + hex(s) + ", t " + hex(t) + ", addr " + hex(addr))
 
-			pc_t = pc
+			pc_t = self.pc
 			pc_t += 1
 
 			match op:
@@ -216,7 +216,7 @@ class Computer:
 					self.registers.write(d, pc_t)
 					pc_t = addr
 					
-			pc = pc_t
+			self.pc = pc_t
 
 	def halt(self):
 		print('HALT')
