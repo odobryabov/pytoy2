@@ -1,5 +1,4 @@
 import sys
-from array import array
 assert sys.version_info >= (3, 10)
 
 class Computer:
@@ -50,19 +49,19 @@ class Computer:
 			return v1 ^ v2
 
 		def Shiftl(self, v1, v2):
-			if 0 < v2 < 16:		 # 16 bits
+			if 0 < v2 < self.RESOLUTION:		 # 16 bits
 				return v1 << v2
 			return v1
 	
 		def Shiftr(self, v1, v2):
-			if 0 < v2 < 16:		 # 16 bits
+			if 0 < v2 < self.RESOLUTION:		 # 16 bits
 				return v1 >> v2
 			return v1
 	
 	class Registers:
 		REGISTERS_NUM = 16
 		def __init__(self):
-			self.image = [0 for i in range(self.REGISTERS_NUM)]   # 16 16-bit cells
+			self.image = [0 for i in range(self.REGISTERS_NUM)]
 
 		def read(self, addr):
 			if 0 <= addr <= self.REGISTERS_NUM:
@@ -77,12 +76,13 @@ class Computer:
 	class Memory:
 		MEMORY_SIZE = 255
 		def __init__(self):
-			self.image = [0 for i in range(self.MEMORY_SIZE)]   # 255 16-bit cells
+			self.image = [0 for i in range(self.MEMORY_SIZE)]
 
 		def read(self, addr):
 			return self.image[addr]
 
 		def write(self, addr, v):
+			print("memory addr " + hex(addr) + " write " + hex(v))
 			self.image[addr] = v
 				
 	class IO:
@@ -140,8 +140,9 @@ class Computer:
 	def load_app(self, filename):
 		with open(filename, 'rb') as file:
 			file_contents = file.read()
-			for addr in range(len(file_contents)):
-				self.memory.write(addr, file_contents[addr])
+			print("file length " + str(len(file_contents)))
+			for addr in range(int(len(file_contents) / 2)):
+				self.memory.write(self.pc + addr, file_contents[addr * 2] << 8 | file_contents[(addr * 2) + 1])
 		
 	def instruction_fetch(self, pc):
 		if pc < self.memory.MEMORY_SIZE:
@@ -155,7 +156,6 @@ class Computer:
 		self.halt()
 
 	def start(self):
-		self.pc = 0x10
 		while self.pc < self.memory.MEMORY_SIZE:
 			op, d, s, t, addr = self.instruction_fetch(self.pc)
 
@@ -169,7 +169,7 @@ class Computer:
 					self.halt()
 
 				case self.Operations.OP_ADD:
-					self.registers.write(d, self.alu.Add( self.registers.read(s), self.registers.read(t)) )
+					self.registers.write(d, self.alu.Add( self.registers.read(s), self.registers.read(t)))
 
 				case self.Operations.OP_SUB:
 					self.registers.write(d, self.alu.Sub(self.registers.read(s), self.registers.read(t)))
@@ -224,15 +224,20 @@ class Computer:
 
 computer = Computer()
 # test add
-computer.memory.write(0x10, 0x81FF)
-computer.memory.write(0x11, 0x82FF)
-computer.memory.write(0x12, 0x1312)
-computer.memory.write(0x13, 0x93FF)
+# computer.memory.write(0x10, 0x81FF)
+# computer.memory.write(0x11, 0x82FF)
+# computer.memory.write(0x12, 0x1312)
+# computer.memory.write(0x13, 0x93FF)
 
-# test sub
-computer.memory.write(0x14, 0x81FF)
-computer.memory.write(0x15, 0x82FF)
-computer.memory.write(0x16, 0x2312)
-computer.memory.write(0x17, 0x93FF)
-computer.start()
+# # test sub
+# computer.memory.write(0x14, 0x81FF)
+# computer.memory.write(0x15, 0x82FF)
+# computer.memory.write(0x16, 0x2312)
+# computer.memory.write(0x17, 0x93FF)
+# computer.start()
 #computer.write(255, 123)
+
+for a in sys.argv[1:]:
+	computer.load_app(a)
+
+computer.start()
