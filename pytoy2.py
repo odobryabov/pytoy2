@@ -1,5 +1,4 @@
 import sys
-assert sys.version_info >= (3, 10)
 
 class Computer:
 	def __init__(self):
@@ -49,14 +48,10 @@ class Computer:
 			return v1 ^ v2
 
 		def Shiftl(self, v1, v2):
-			if 0 < v2 < self.RESOLUTION:		 # 16 bits
-				return v1 << v2
-			return v1
+			return v1 << (v2 % self.RESOLUTION)
 	
 		def Shiftr(self, v1, v2):
-			if 0 < v2 < self.RESOLUTION:		 # 16 bits
-				return v1 >> v2
-			return v1
+			return v1 >> (v2 % self.RESOLUTION)
 	
 	class Registers:
 		REGISTERS_NUM = 16
@@ -122,9 +117,9 @@ class Computer:
 	def load_app(self, filename):
 		with open(filename, 'rb') as file:
 			file_contents = file.read()
-			print("file length " + str(len(file_contents)))
-			for addr in range(int(len(file_contents) / 2)):
-				self.memory.write(self.pc + addr, file_contents[addr * 2] << 8 | file_contents[(addr * 2) + 1])
+			file_length = len(file_contents) // 2
+			for addr in range(file_length):
+				self.memory.write(self.pc + addr, int(file_contents[addr * 2]) << 8 | int(file_contents[(addr * 2) + 1]))
 		
 	def instruction_fetch(self, pc):
 		if pc < self.memory.MEMORY_SIZE:
