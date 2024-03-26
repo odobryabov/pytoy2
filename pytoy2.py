@@ -104,24 +104,6 @@ class Computer:
 				v =  v - 0x10000
 			print("Output > ", v)
 
-	class Operations:
-		OP_HALT		= 0x0
-		OP_ADD		= 0x1
-		OP_SUB		= 0x2
-		OP_AND		= 0x3
-		OP_XOR		= 0x4
-		OP_SHL		= 0x5
-		OP_SHR		= 0x6
-		OP_LOADA	= 0x7
-		OP_LOAD		= 0x8
-		OP_STOR		= 0x9
-		OP_LOADI	= 0xA
-		OP_STORI	= 0xB
-		OP_BZERO	= 0xC
-		OP_BPOSI	= 0xD
-		OP_JMPR		= 0xE
-		OP_JMPL		= 0xF
-
 	def read(self, addr):
 		if 0 <= addr < self.memory.MEMORY_SIZE:
 			return self.memory.read(addr)
@@ -153,70 +135,102 @@ class Computer:
 			t    = (opcode & 0x000F)
 			addr = (opcode & 0x00FF)
 			return op, d, s, t, addr
-		self.halt()
+		else:
+			return 0, 0, 0, 0, 0
 
 	def start(self):
+		def op_halt(self, d, s, t, addr):
+			self.halt()
+			return 0
+
+		def op_add(self, d, s, t, addr):
+			self.registers.write(d, self.alu.Add( self.registers.read(s), self.registers.read(t)))
+			return self.pc + 1
+
+		def op_sub(self, d, s, t, addr):
+			self.registers.write(d, self.alu.Sub(self.registers.read(s), self.registers.read(t)))
+			return self.pc + 1
+			
+		def op_and(self, d, s, t, addr):
+			self.registers.write(d, self.alu.And(self.registers.read(s), self.registers.read(t)))
+			return self.pc + 1
+			
+		def op_xor(self, d, s, t, addr):
+			self.registers.write(d, self.alu.Xor(self.registers.read(s), self.registers.read(t)))
+			return self.pc + 1
+			
+		def op_shl(self, d, s, t, addr):
+			self.registers.write(d, self.alu.Shiftl(self.registers.read(s), self.registers.read(t)))
+			return self.pc + 1
+			
+		def op_shr(self, d, s, t, addr):
+			self.registers.write(d, self.alu.Shiftr(self.registers.read(s), self.registers.read(t)))
+			return self.pc + 1
+			
+		def op_loada(self, d, s, t, addr):
+			self.registers.write(d, addr)
+			return self.pc + 1
+			
+		def op_load(self, d, s, t, addr):
+			self.registers.write(d, self.read(addr))
+			return self.pc + 1
+			
+		def op_stor(self, d, s, t, addr):
+			self.write(addr, self.registers.read(d))
+			return self.pc + 1
+			
+		def op_loadi(self, d, s, t, addr):
+			self.registers.write(d, self.read(self.registers.read(t)))
+			return self.pc + 1
+			
+		def op_stori(self, d, s, t, addr):
+			self.write(self.registers.read(t), self.registers.read(d))
+			return self.pc + 1
+			
+		def op_bzero(self, d, s, t, addr):
+			if self.registers.read(d) == 0:
+				return addr
+			else:
+				return self.pc
+			
+		def op_bposi(self, d, s, t, addr):
+			if self.registers.read(d) > 0:
+				return addr
+			else:
+				return self.pc
+			
+		def op_jmpr(self, d, s, t, addr):
+			return self.registers.read(t)
+			
+		def op_jmpl(self, d, s, t, addr):
+			self.registers.write(d, self.pc)
+			return addr
+		
+		instruction_exec_map = {
+			0x0: op_halt,
+			0x1: op_add,
+			0x2: op_sub,
+			0x3: op_and,
+			0x4: op_xor,
+			0x5: op_shl,
+			0x6: op_shr,
+			0x7: op_loada,
+			0x8: op_load,
+			0x9: op_stor,
+			0xA: op_loadi,
+			0xB: op_stori,
+			0xC: op_bzero,
+			0xD: op_bposi,
+			0xE: op_jmpr,
+			0xF: op_jmpl
+		}
+
 		while self.pc < self.memory.MEMORY_SIZE:
 			op, d, s, t, addr = self.instruction_fetch(self.pc)
 
 			print("op " + hex(op) + ", d " + hex(d) + ", s " + hex(s) + ", t " + hex(t) + ", addr " + hex(addr))
 
-			pc_t = self.pc
-			pc_t += 1
-
-			match op:
-				case self.Operations.OP_HALT:
-					self.halt()
-
-				case self.Operations.OP_ADD:
-					self.registers.write(d, self.alu.Add( self.registers.read(s), self.registers.read(t)))
-
-				case self.Operations.OP_SUB:
-					self.registers.write(d, self.alu.Sub(self.registers.read(s), self.registers.read(t)))
-					
-				case self.Operations.OP_AND:
-					self.registers.write(d, self.alu.And(self.registers.read(s), self.registers.read(t)))
-					
-				case self.Operations.OP_XOR:
-					self.registers.write(d, self.alu.Xor(self.registers.read(s), self.registers.read(t)))
-					
-				case self.Operations.OP_SHL:
-					self.registers.write(d, self.alu.Shiftl(self.registers.read(s), self.registers.read(t)))
-					
-				case self.Operations.OP_SHR:
-					self.registers.write(d, self.alu.Shiftr(self.registers.read(s), self.registers.read(t)))
-					
-				case self.Operations.OP_LOADA:
-					self.registers.write(d, addr)
-					
-				case self.Operations.OP_LOAD:
-					self.registers.write(d, self.read(addr))
-					
-				case self.Operations.OP_STOR:
-					self.write(addr, self.registers.read(d))
-					
-				case self.Operations.OP_LOADI:
-					self.registers.write(d, self.read(self.registers.read(t)))
-					
-				case self.Operations.OP_STORI:
-					self.write(self.registers.read(t), self.registers.read(d))
-					
-				case self.Operations.OP_BZERO:
-					if self.registers.read(d) == 0:
-						pc_t = addr
-					
-				case self.Operations.OP_BPOSI:
-					if self.registers.read(d) > 0:
-						pc_t = addr
-					
-				case self.Operations.OP_JMPR:
-					pc_t = self.registers.read(t)
-					
-				case self.Operations.OP_JMPL:
-					self.registers.write(d, pc_t)
-					pc_t = addr
-					
-			self.pc = pc_t
+			self.pc = instruction_exec_map[op](self, d, s, t, addr)
 
 	def halt(self):
 		print('HALT')
