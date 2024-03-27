@@ -9,10 +9,16 @@ class Computer:
 		self.pc = 0x10  # program counter
 		
 	class ALU:
-		RESOLUTION = 16
+		DATA_RESOLUTION = 16
+
+		ALU_CTRL_ADD_SUB	= 0b000
+		ALU_CTRL_AND		= 0b001
+		ALU_CTRL_XOR		= 0b010
+		ALU_CTRL_SHIFT		= 0b011
+		ALU_CTRL_INPUT2		= 0b100
 
 		half_adder = lambda self, a, b: (a ^ b, a & b)
-		
+
 		def full_adder(self, a, b, cr): 
 			s1, c1 = self.half_adder(a, b)
 			s, c2 = self.half_adder(cr, s1)
@@ -20,53 +26,61 @@ class Computer:
 
 		def adder_substractor(self, a, b, cr, sub):
 			return self.full_adder(a, b ^ sub, cr)
-
-		def Add(self, v1, v2):
+		
+		def alu(self, input1, input2, substract, shift_dir, ctrl):
 			result = 0
-			carry = 0
-			for x in range(self.RESOLUTION):
-				b1 = (v1 & (1 << x)) >> x
-				b2 = (v2 & (1 << x)) >> x
-				r, carry = self.adder_substractor(b1, b2, carry, 0)
-				result = result | (r << x)
+			if ctrl == self.ALU_CTRL_ADD_SUB:
+				carry = substract
+				for position in range(self.DATA_RESOLUTION):
+					bit1 = (input1 & (1 << position)) >> position
+					bit2 = (input2 & (1 << position)) >> position
+					result_bit, carry = self.adder_substractor(bit1, bit2, carry, substract)
+					result = result | (result_bit << position)
+			elif ctrl == self.ALU_CTRL_AND:
+				result = input1 & input2
+			elif ctrl == self.ALU_CTRL_XOR:
+				result = input1 ^ input2
+			elif ctrl == self.ALU_CTRL_SHIFT:
+				if shift_dir == 0:
+					result = input1 << (input2 % self.DATA_RESOLUTION)
+				else:
+					result = input1 >> (input2 % self.DATA_RESOLUTION)
+			elif ctrl == self.ALU_CTRL_INPUT2:
+				result = input2
+
 			return result
 
-		def Sub(self, v1, v2):
-			result = 0
-			carry = 1
-			for x in range(self.RESOLUTION):
-				b1 = (v1 & (1 << x)) >> x
-				b2 = (v2 & (1 << x)) >> x
-				r, carry = self.adder_substractor(b1, b2, carry, 1)
-				result = result | (r << x)
-			return result
+		def Add(self, input1, input2):
+			return self.alu(input1, input2, 0, 0, self.ALU_CTRL_ADD_SUB)
 
-		def And(self, v1, v2):
-			return v1 & v2
+		def Sub(self, input1, input2):
+			return self.alu(input1, input2, 1, 0, self.ALU_CTRL_ADD_SUB)
 
-		def Xor(self, v1, v2):
-			return v1 ^ v2
+		def And(self, input1, input2):
+			return self.alu(input1, input2, 0, 0, self.ALU_CTRL_AND)
 
-		def Shiftl(self, v1, v2):
-			return v1 << (v2 % self.RESOLUTION)
+		def Xor(self, input1, input2):
+			return self.alu(input1, input2, 0, 0, self.ALU_CTRL_XOR)
+
+		def Shiftl(self, input1, input2):
+			return self.alu(input1, input2, 0, 0, self.ALU_CTRL_SHIFT)
 	
-		def Shiftr(self, v1, v2):
-			return v1 >> (v2 % self.RESOLUTION)
+		def Shiftr(self, input1, input2):
+			return self.alu(input1, input2, 0, 1, self.ALU_CTRL_SHIFT)
+		
+		def Input2(self, input1, input2):
+			return self.alu(input1, input2, 0, 0, self.ALU_CTRL_INPUT2)
 	
 	class Registers:
 		REGISTERS_NUM = 16
 		def __init__(self):
 			self.image = [0 for i in range(self.REGISTERS_NUM)]
 
-		def read(self, addr):
-			if 0 <= addr <= self.REGISTERS_NUM:
-				return self.image[addr]
-			return 0
+		def read(self, a_addr, b_addr):
+			return self.image[a_addr], self.image[b_addr]
 
-		def write(self, addr, v):
-			if 1 <= addr <= self.REGISTERS_NUM:  # first register is read-only
-				self.image[addr] = v
-			return 0
+		def write(self, w_data, w_addr):
+			self.image[w_addr] = w_data
 
 	class Memory:
 		MEMORY_SIZE = 255
@@ -119,7 +133,7 @@ class Computer:
 			file_contents = file.read()
 			file_length = len(file_contents) // 2
 			for addr in range(file_length):
-				self.memory.write(self.pc + addr, int(file_contents[addr * 2]) << 8 | int(file_contents[(addr * 2) + 1]))
+				self.memory.write(self.pc + addr, (int(file_contents[addr * 2]) << 8) | int(file_contents[(addr * 2) + 1]))
 		
 	def instruction_fetch(self, pc):
 		if pc < self.memory.MEMORY_SIZE:
@@ -139,66 +153,84 @@ class Computer:
 			return 0
 
 		def op_add(self, d, s, t, addr):
-			self.registers.write(d, self.alu.Add( self.registers.read(s), self.registers.read(t)))
+			a_data, b_data = self.registers.read(s, t)
+			alu_output = self.alu.Add(a_data, b_data)
+			self.registers.write(alu_output, d)
 			return self.pc + 1
 
 		def op_sub(self, d, s, t, addr):
-			self.registers.write(d, self.alu.Sub(self.registers.read(s), self.registers.read(t)))
+			a_data, b_data = self.registers.read(s, t)
+			alu_output = self.alu.Sub(a_data, b_data)
+			self.registers.write(alu_output, d)
 			return self.pc + 1
 			
 		def op_and(self, d, s, t, addr):
-			self.registers.write(d, self.alu.And(self.registers.read(s), self.registers.read(t)))
+			a_data, b_data = self.registers.read(s, t)
+			alu_output = self.alu.And(a_data, b_data)
+			self.registers.write(alu_output, d)
 			return self.pc + 1
 			
 		def op_xor(self, d, s, t, addr):
-			self.registers.write(d, self.alu.Xor(self.registers.read(s), self.registers.read(t)))
+			a_data, b_data = self.registers.read(s, t)
+			alu_output = self.alu.Xor(a_data, b_data)
+			self.registers.write(alu_output, d)
 			return self.pc + 1
 			
 		def op_shl(self, d, s, t, addr):
-			self.registers.write(d, self.alu.Shiftl(self.registers.read(s), self.registers.read(t)))
+			a_data, b_data = self.registers.read(s, t)
+			alu_output = self.alu.Shiftl(a_data, b_data)
+			self.registers.write(alu_output, d)
 			return self.pc + 1
 			
 		def op_shr(self, d, s, t, addr):
-			self.registers.write(d, self.alu.Shiftr(self.registers.read(s), self.registers.read(t)))
+			a_data, b_data = self.registers.read(s, t)
+			alu_output = self.alu.Shiftr(a_data, b_data)
+			self.registers.write(alu_output, d)
 			return self.pc + 1
 			
 		def op_loada(self, d, s, t, addr):
-			self.registers.write(d, addr)
+			self.registers.write(addr, d)
 			return self.pc + 1
 			
 		def op_load(self, d, s, t, addr):
-			self.registers.write(d, self.read(addr))
+			self.registers.write(self.read(addr), d)
 			return self.pc + 1
 			
 		def op_stor(self, d, s, t, addr):
-			self.write(addr, self.registers.read(d))
+			a_data, b_data = self.registers.read(d, 0)
+			self.write(addr, a_data)
 			return self.pc + 1
 			
 		def op_loadi(self, d, s, t, addr):
-			self.registers.write(d, self.read(self.registers.read(t)))
+			a_data, b_data = self.registers.read(t, 0)
+			self.registers.write(a_data, d)
 			return self.pc + 1
 			
 		def op_stori(self, d, s, t, addr):
-			self.write(self.registers.read(t), self.registers.read(d))
+			a_data, b_data = self.registers.read(t, d)
+			self.write(self.registers.read(a_data, b_data))
 			return self.pc + 1
 			
 		def op_bzero(self, d, s, t, addr):
-			if self.registers.read(d) == 0:
+			a_data, b_data = self.registers.read(d, 0)
+			if a_data == 0:
 				return addr
 			else:
 				return self.pc
 			
 		def op_bposi(self, d, s, t, addr):
-			if self.registers.read(d) > 0:
+			a_data, b_data = self.registers.read(d, 0)
+			if a_data > 0:
 				return addr
 			else:
 				return self.pc
 			
 		def op_jmpr(self, d, s, t, addr):
-			return self.registers.read(t)
+			data1, data2 = self.registers.read(t, 0)
+			return data1
 			
 		def op_jmpl(self, d, s, t, addr):
-			self.registers.write(d, self.pc)
+			self.registers.write(self.pc, d)
 			return addr
 		
 		instruction_exec_map = {
