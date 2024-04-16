@@ -3,7 +3,7 @@ Python emulator for TOY2 machine
 
 ## Using
 ``````
-# python3 toy.py add.bin
+# python3 toy.py apps/add.bin
 Enter a value > 3
 Enter a value > -4
 Output > -1
