@@ -1,6 +1,6 @@
 import sys
 
-class Computer:
+class Toy:
 	SOFT_START_ADDRESS = 0x10
 
 	def __init__(self):
@@ -239,22 +239,10 @@ class Computer:
 		print('HALT')
 		exit()
 
-computer = Computer()
-# test add
-# computer.memory.write(0x10, 0x81FF)
-# computer.memory.write(0x11, 0x82FF)
-# computer.memory.write(0x12, 0x1312)
-# computer.memory.write(0x13, 0x93FF)
+if __name__ == "__main__":
+	computer = Toy()
 
-# # test sub
-# computer.memory.write(0x14, 0x81FF)
-# computer.memory.write(0x15, 0x82FF)
-# computer.memory.write(0x16, 0x2312)
-# computer.memory.write(0x17, 0x93FF)
-# computer.start()
-#computer.write(255, 123)
+	for a in sys.argv[1:]:
+		computer.load_app(a)
 
-for a in sys.argv[1:]:
-	computer.load_app(a)
-
-computer.start()
+	computer.start()
