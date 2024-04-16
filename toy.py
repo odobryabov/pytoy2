@@ -232,7 +232,7 @@ class Computer:
 
 		while True:
 			op, d, s, t, addr = self.fetch()
-			print("op ", hex(op), ", d ", hex(d), ", s ", hex(s), ", t ", hex(t), ", addr ", hex(addr))
+			# print("op ", hex(op), ", d ", hex(d), ", s ", hex(s), ", t ", hex(t), ", addr ", hex(addr))
 			execute[op](self, d, s, t, addr)
 
 	def halt(self):
